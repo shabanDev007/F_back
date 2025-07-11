@@ -31,13 +31,12 @@ exports.createProduct = async (req, res) => {
       has_colors,
       sizes,
       colors,
-      isNewProduct,
+      isNew,
       isTrending,
       image,
       sku,
       stock,
     } = req.body;
-
     // Validate required fields
     if (!name || !price || !category || !sku) {
       return res.status(400).json({ message: 'Missing required fields: name, price, category, and sku are required' });
@@ -66,7 +65,7 @@ exports.createProduct = async (req, res) => {
       description: description || null,
       has_sizes: has_sizes || false,
       has_colors: has_colors || false,
-      isNewProduct: isNewProduct || false,
+      isNew: isNew || false,
       isTrending: isTrending || false,
       sku: sku || null,
       stock: stock !== undefined ? stock : 0,
@@ -117,7 +116,7 @@ exports.updateProduct = async (req, res) => {
       has_colors,
       sizes,
       colors,
-      isNewProduct,
+      isNew,
       isTrending,
       image,
       sku,
@@ -144,7 +143,7 @@ exports.updateProduct = async (req, res) => {
       description: description || null,
       has_sizes: has_sizes || false,
       has_colors: has_colors || false,
-      isNewProduct: isNewProduct || false,
+      isNew: isNew || false,
       isTrending: isTrending || false,
       sku,
       stock: stock !== undefined ? stock : product.stock,

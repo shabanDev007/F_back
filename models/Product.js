@@ -94,11 +94,5 @@ const Product = sequelize.define('Product', {
   timestamps: true,
 });
 
-// Define relationships
-Product.hasMany(ProductSize, { foreignKey: 'productId', as: 'sizes' });
-ProductSize.belongsTo(Product, { foreignKey: 'productId' });
-
-Product.hasMany(ProductColor, { foreignKey: 'productId', as: 'colors' });
-ProductColor.belongsTo(Product, { foreignKey: 'productId' });
 
 module.exports = { Product, ProductSize, ProductColor };

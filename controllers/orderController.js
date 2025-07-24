@@ -3,6 +3,8 @@ const { Customer, Order, OrderItem, Product } = db;
 
 exports.createOrder = async (req, res) => {
   const transaction = await db.sequelize.transaction();
+
+  console.log(req.body)
   try {
     const {
       items,
@@ -23,6 +25,8 @@ exports.createOrder = async (req, res) => {
       !customer.email ||
       !customer.name ||
       !customer.phone ||
+      !customer.governorate ||
+      !customer.notes ||
       !subtotal ||
       !total ||
       !customer.address
@@ -59,6 +63,7 @@ exports.createOrder = async (req, res) => {
           address: customer.address,
           city: customer.city || null,
           governorate: customer.governorate || null,
+          notes: customer.notes,
           totalOrders: 1,
           totalSpent: total,
           status: "active",
@@ -77,6 +82,7 @@ exports.createOrder = async (req, res) => {
           phone: customer.phone || customerRecord.phone,
           city: customer.city || customerRecord.city,
           governorate: customer.governorate || customerRecord.governorate,
+          notes: customer.notes || customerRecord.notes
         },
         { transaction }
       );
@@ -134,9 +140,122 @@ exports.getOrders = async (req, res) => {
       return res.status(404).json({ message: "No orders found" });
     }
 
-    return res.status(200).json({ message: "Orders retrieved successfully", orders });
+    return res.status(200).json({ message: "Orders retrieved successfully", data: orders || [] ,total : orders.length}   ,console.log(orders));
   } catch (error) {
     console.error("Error fetching orders:", error);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+
+exports.updateStatus = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const {  status } = req.body;
+
+    // التحقق من البيانات المطلوبة
+    if (!id || !status) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Missing required data (id, status)" });
+    }
+
+    // التحقق من صلاحية حالة الطلب
+    // const validStatuses = ["pending", "processing", "shipped", "delivered", "cancelled", "returned"];
+    // if (!validStatuses.includes(status)) {
+    //   await transaction.rollback();
+    //   return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+    // }
+
+    // البحث عن الطلب
+    const order = await Order.findByPk(id, { transaction });
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ message: `Order with ID ${id} not found` });
+    }
+
+    // تحديث حالة الطلب
+    await order.update(
+      {
+        status,
+        updatedAt: new Date(),
+      },
+      { transaction }
+    );
+
+    // إذا تم إلغاء الطلب أو إرجاعه، تحديث إحصائيات العميل
+    if (status === "cancelled" || status === "returned") {
+      const customer = await Customer.findByPk(order.customerId, { transaction });
+      if (customer) {
+        await customer.update(
+          {
+            totalOrders: customer.totalOrders - 1,
+            totalSpent: parseFloat(customer.totalSpent) - parseFloat(order.totalAmount),
+            updatedAt: new Date(),
+          },
+          { transaction }
+        );
+      }
+    }
+
+    await transaction.commit();
+    return res.status(200).json({ message: "Order status updated successfully", id, status });
+  } catch (error) {
+    // await transaction.rollback();
+    console.error("Order status update error:", error);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+exports.deleteOrder = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const { id } = req.params;
+
+    // التحقق من وجود معرف الطلب
+    if (!id) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Order ID is required" });
+    }
+
+    // البحث عن الطلب
+    const order = await Order.findByPk(id, {
+      include: [{ model: OrderItem, as: "items" }],
+      transaction,
+    });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ message: `Order with ID ${id} not found` });
+    }
+
+    // حذف عناصر الطلب المرتبطة
+    await OrderItem.destroy({
+      where: { orderId: id },
+      transaction,
+    });
+
+    // تحديث إحصائيات العميل
+    const customer = await Customer.findByPk(order.customerId, { transaction });
+    if (customer) {
+      await customer.update(
+        {
+          totalOrders: customer.totalOrders > 0 ? customer.totalOrders - 1 : 0,
+          totalSpent: Math.max(0, parseFloat(customer.totalSpent) - parseFloat(order.totalAmount)),
+          updatedAt: new Date(),
+        },
+        { transaction }
+      );
+    }
+
+    // حذف الطلب
+    await order.destroy({ transaction });
+
+    await transaction.commit();
+    return res.status(200).json({ message: "Order deleted successfully", orderId: id });
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Order deletion error:", error);
     return res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };

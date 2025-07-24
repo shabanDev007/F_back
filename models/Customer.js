@@ -28,6 +28,14 @@ const Customer = sequelize.define('Customer', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  governorate: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  notes: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   totalOrders: {
     type: DataTypes.INTEGER,
     allowNull: false,

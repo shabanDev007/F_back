@@ -5,7 +5,7 @@ const morgan = require('morgan');
 const productRoutes = require('./routes/productRoutes');
 const discountRouters = require('./routes/discountRouters');
 const orderRoutes = require('./routes/ordersRoutes');
-
+const mailRouters = require('./routes/mailRouters');
 
 const app = express();
 
@@ -31,6 +31,6 @@ app.use(cors({
 app.use('/api/products', productRoutes);
 app.use('/api/discount', discountRouters);
 app.use('/api/orders', orderRoutes);
-
+app.use('/api/mail', mailRouters);
 
 module.exports = app;
